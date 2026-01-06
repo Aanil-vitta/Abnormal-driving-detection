@@ -1,0 +1,149 @@
+From tkinter import *
+Import tkinter
+Import numpy as np
+Import imutils
+Import cv2 as cv
+From keras.preprocessing.image import ImageDataGenerator
+From keras.models import Sequential
+From keras.layers import Convolution2D, MaxPooling2D, ZeroPadding2D
+From keras.layers import Activation, Dropout, Flatten, Dense
+Import os
+From keras.preprocessing import image
+From tkinter import filedialog
+From tkinter.filedialog import askopenfilename
+
+Main = tkinter.Tk()
+Main.title(“Video-Based Abnormal Driving Behavior Detection”)
+Main.geometry(“800x500”)
+
+Global awgrd_model
+Global video
+
+Def loadModel():
+    Global awgrd_model
+    Img_width, img_height = 150, 150
+    Train_data_dir = ‘dataset/imgs/train’
+    Validation_data_dir = ‘dataset/imgs/validation’
+    Nb_train_samples = 22424
+    Nb_validation_samples = 1254
+    Nb_epoch = 10
+    If os.path.exists(‘AWGRD_model.h5’):
+        Awgrd_model = Sequential()
+        Awgrd_model.add(Convolution2D(32, 3, 3, input_shape = (150, 150, 3), activation = ‘relu’))
+        Awgrd_model.add(MaxPooling2D(pool_size = (2, 2)))
+        Awgrd_model.add(Convolution2D(32, 3, 3, activation = ‘relu’))
+        Awgrd_model.add(MaxPooling2D(pool_size = (2, 2)))
+        Awgrd_model.add(Flatten())
+        Awgrd_model.add(Dense(output_dim = 128, activation = ‘relu’))
+        Awgrd_model.add(Dense(output_dim = 10, activation = ‘softmax’))
+        Awgrd_model.compile(optimizer = ‘adam’, loss = ‘categorical_crossentropy’, metrics = [‘accuracy’])
+        Awgrd_model.load_weights(‘AWGRD_model.h5’)
+        Print(awgrd_model.summary())
+        Pathlabel.config(text=”          AWGRD Model Generated Successfully”)
+    Else:
+        Awgrd_model = Sequential()
+        Awgrd_model.add(Convolution2D(32, 3, 3, input_shape = (150, 150, 3), activation = ‘relu’))
+        Awgrd_model.add(MaxPooling2D(pool_size = (2, 2)))
+        Awgrd_model.add(Convolution2D(32, 3, 3, activation = ‘relu’))
+        Awgrd_model.add(MaxPooling2D(pool_size = (2, 2)))
+        Awgrd_model.add(Flatten())
+        Awgrd_model.add(Dense(output_dim = 128, activation = ‘relu’))
+        Awgrd_model.add(Dense(output_dim = 10, activation = ‘softmax’))
+        Awgrd_model.compile(optimizer = ‘adam’, loss = ‘categorical_crossentropy’, metrics = [‘accuracy’])
+        Train_datagen = ImageDataGenerator(rescale=1.0/255, shear_range=0.2, zoom_range=0.2, horizontal_flip=True)
+        Test_datagen = ImageDataGenerator(rescale=1.0/255)
+        Train_generator = train_datagen.flow_from_directory(train_data_dir, target_size=(img_height, img_width), batch_size=32, class_mode=’categorical’)
+        Validation_generator = train_datagen.flow_from_directory(validation_data_dir, target_size=(img_height, img_width), batch_size=32, class_mode=’categorical’)
+        Awgrd_model.fit_generator(train_generator, samples_per_epoch=nb_train_samples, nb_epoch=nb_epoch, validation_data=validation_generator, nb_val_samples=nb_validation_samples)
+        Awgrd_model.save_weights(‘driver_state_detection_small_CNN.h5’)
+        Pathlabel.config(text=”          AWGRD Model Generated Successfully”)
+    
+    
+    
+Def upload():
+    Global video
+    Filename = filedialog.askopenfilename(initialdir=”Video”)
+    Pathlabel.config(text=”          input loaded”)
+    Video = cv.VideoCapture(filename)
+    
+Def startMonitoring():
+        While(True):
+            Ret, frame = video.read()
+            Print(ret)
+            If ret == True:
+                cv.imwrite(“test.jpg”,frame)
+                imagetest = image.load_img(“test.jpg”, target_size = (150,150))
+                imagetest = image.img_to_array(imagetest)
+                imagetest = np.expand_dims(imagetest, axis = 0)
+                predict = awgrd_model.predict_classes(imagetest)
+                print(predict)
+                msg = “”;
+                if str(predict[0]) == ‘0’:
+                        msg = ‘Safe Driving’
+                if str(predict[0]) == ‘1’:
+                        msg = ‘Using Phone’
+                if str(predict[0]) == ‘2’:
+                        msg = ‘using/ talking phone’
+                if str(predict[0]) == ‘3’:
+                        msg = ‘Using Phone’
+                if str(predict[0]) == ‘4’:
+                        msg = ‘Using/Talking Phone’
+                if str(predict[0]) == ‘5’:
+                        msg = ‘distracted/Radio Operating’
+                if str(predict[0]) == ‘6’:
+                        msg = ‘driver is distracted’
+                if str(predict[0]) == ‘7’:
+                        msg = ‘dristracted / Reaching Behind’
+                if str(predict[0]) == ‘8’:
+                        msg = ‘performing an action’
+                if str(predict[0]) == ‘9’:
+                        msg = ‘Talking and driving’
+                text_label = “{}: {:4f}”.format(msg, 80)
+                cv.putText(frame, text_label, (20, 20), cv.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                cv.imshow(‘Frame’, frame)
+                if cv.waitKey(2500) & 0xFF == ord(‘q’):
+                   break
+            else:
+                break
+        video.release()
+        cv.destroyAllWindows()
+
+
+def exit():
+    global main
+    main.destroy()
+  
+
+font = (‘times’, 16, ‘bold’)
+title = Label(main, text=’Video-Based Abnormal Driving Behavior Detection via Deep Learning Fusions’,anchor=W, justify=LEFT)
+title.config(bg=’black’, fg=’white’)  
+title.config(font=font)           
+title.config(height=3, width=120)       
+title.place(x=0,y=5)
+
+
+font1 = (‘times’, 14, ‘bold’)
+loadButton = Button(main, text=”Generate & Load AWGRD Model”, command=loadModel)
+loadButton.place(x=50,y=200)
+loadButton.config(font=font1)  
+
+pathlabel = Label(main)
+pathlabel.config(bg=’DarkOrange1’, fg=’white’)  
+pathlabel.config(font=font1)           
+pathlabel.place(x=50,y=250)
+
+
+uploadButton = Button(main, text=”Upload input”, command=upload)
+uploadButton.place(x=50,y=300)
+uploadButton.config(font=font1)
+
+uploadButton = Button(main, text=”Start Behaviour Monitoring”, command=startMonitoring)
+uploadButton.place(x=50,y=350)
+uploadButton.config(font=font1)
+
+exitButton = Button(main, text=”Exit”, command=exit)
+exitButton.place(x=50,y=400)
+exitButton.config(font=font1)
+
+main.config(bg=’chocolate1’)
+main.mainloop()
